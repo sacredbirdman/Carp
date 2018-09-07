@@ -1,0 +1,128 @@
+(load "GLFW.carp")
+(use GLFW)
+
+(load "OpenGL.carp")
+
+(load "Vector.carp")
+
+(defmodule Vector2
+  (defn perp [a]
+    (V2.init (neg @(V2.y a))
+             @(V2.x a))))
+
+(use Vector2)
+(use Double)
+
+(defn t []
+  (to-float (get-time)))
+
+(defn sprout-triangles [v1 v2 level]
+  (if (> level 0)
+    (let [vec (sub v2 v1)
+             shrunk (mul &vec 0.7)
+             half (div &vec 2.0)
+             p1 (add v1 &shrunk)
+             p2 (sub v2 &shrunk)
+             p3 (add &(add v1 &half) &(mul &(perp &vec) 0.6))]
+      (Array.concat &[[(to-float @(V2.x &p1))
+                       (to-float @(V2.y &p1))
+                       (to-float @(V2.x &p2))
+                       (to-float @(V2.y &p2))
+                       (to-float @(V2.x &p3))
+                       (to-float @(V2.y &p3))]
+                      (sprout-triangles &p3 &p1 (- level 1))
+                      (sprout-triangles &p2 &p3 (- level 1))]))
+    []))
+
+(defn get-rot-scale-translate-matrix [angle sx sy tx ty]
+  [(* sx (Float.cos angle))        (* sy (Float.sin angle))        0f 0f
+   (* sx (neg (Float.sin angle)))  (* sy (Float.cos angle))        0f 0f
+   0f                              0f                              1f 0f
+   tx                              ty                              0f 1f])
+
+(defn get-projection-matrix [viewport-width viewport-height]
+  [(/ 2f (- viewport-width 1f)) 0f                             0f  0f
+   0f                           (/ -2f (- viewport-height 1f)) 0f  0f
+   0f                           0f                            -1f  0f
+   -1f                          1f                             0f  1f])
+
+
+ 
+(defn load-shader [filename]
+  (let [contents (IO.read->EOF filename)]
+    (Array.endo-map
+      (fn [x] (String.append &x "\n"))
+      (String.lines &contents))))
+
+(defn-do main []
+  (let-do [_ (GLFW.init)
+           window (create-window 640 480 (cstr "GLSL <3 CARP") NULL NULL)]
+
+    (make-context-current window)
+
+    (let-do [array-id (GL.genVertexArray)
+             vertex-buffer-id (GL.genBuffer)
+             index-buffer-id (GL.genBuffer)
+             program-id (GL.createProgram)
+             vertex-shader-id (GL.createShader GL.VERTEX_SHADER)
+             fragment-shader-id (GL.createShader GL.FRAGMENT_SHADER)
+             vertices (Array.concat &[[-80f 40f 80f 40f 0f -120f]
+                                      (sprout-triangles &(V2.init 0.0 -120.0) &(V2.init -80.0 40.0) 7)
+                                      (sprout-triangles &(V2.init 80.0 40.0) &(V2.init  0.0 -120.0) 7)
+                                      (sprout-triangles &(V2.init -80.0 40.0) &(V2.init 80.0 40.0) 7)])
+             
+                             
+             num-of-v (Array.length &vertices)                
+             indices (Array.range 0 (- num-of-v 1) 1)
+             vertex-shader-source (load-shader "./examples/vertex_shader.glsl")
+             fragment-shader-source (load-shader "./examples/fragment_shader.glsl")]
+
+      (GL.bindVertexArray array-id)
+      (GL.bindBuffer GL.ARRAY_BUFFER vertex-buffer-id)
+
+      (GL.bufferFloatData GL.ARRAY_BUFFER (Array.length &vertices) (Array.raw vertices) GL.STATIC_DRAW)
+      (GL.vertexAttribPointer 0 2 GL.FLOAT GL.FALSE 8 0)
+      (GL.enableVertexAttribArray 0)
+
+      (GL.bindBuffer GL.ELEMENT_ARRAY_BUFFER index-buffer-id)
+      (GL.bufferIntData GL.ELEMENT_ARRAY_BUFFER (Array.length &indices) (Array.raw indices) GL.STATIC_DRAW)
+
+
+      (GL.shaderSource vertex-shader-id
+                       (Array.length &vertex-shader-source)
+           (Array.raw (Array.copy-map String.cstr &vertex-shader-source))
+           (Array.raw (Array.copy-map String.length &vertex-shader-source)))
+
+      (GL.shaderSource fragment-shader-id
+                       (Array.length &fragment-shader-source)
+                       (Array.raw (Array.copy-map String.cstr &fragment-shader-source))
+                       (Array.raw (Array.copy-map String.length &fragment-shader-source)))
+
+      (GL.compileShader vertex-shader-id)
+
+      (GL.checkCompileErrors vertex-shader-id)
+
+      (GL.compileShader fragment-shader-id)
+
+      (GL.checkCompileErrors vertex-shader-id)
+
+      (GL.attachShader program-id vertex-shader-id)
+      (GL.attachShader program-id fragment-shader-id)
+
+      (GL.linkProgram program-id)
+
+      (GL.checkLinkErrors program-id)
+
+      (GL.useProgram program-id)
+
+      (GL.uniformMatrix4fv 1 1 GL.FALSE (Array.raw (get-projection-matrix 640f 480f)))
+
+      (while (= 0 (window-should-close window))
+        (do
+          (GL.uniformMatrix4fv 2 1 GL.FALSE (Array.raw (get-rot-scale-translate-matrix (t) 1.0f 1.0f 320f 240f)))
+          (GL.clearColor 0.2f 0.1f 0.1f 1.0f)
+          (GL.clear GL.COLOR_BUFFER_BIT)
+          (GL.drawElements GL.TRIANGLES num-of-v GL.UNSIGNED_INT 0)
+          (swap-buffers window)
+          (poll-events)))))
+  0)
