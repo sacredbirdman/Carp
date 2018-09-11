@@ -77,16 +77,6 @@
              vertex-shader-source (load-shader "./examples/vertex_shader.glsl")
              fragment-shader-source (load-shader "./examples/fragment_shader.glsl")]
 
-      (GL.bindVertexArray array-id)
-      (GL.bindBuffer GL.ARRAY_BUFFER vertex-buffer-id)
-
-      (GL.bufferFloatData GL.ARRAY_BUFFER (Array.length &vertices) (Array.raw vertices) GL.STATIC_DRAW)
-      (GL.vertexAttribPointer 0 2 GL.FLOAT GL.FALSE 8 0)
-      (GL.enableVertexAttribArray 0)
-
-      (GL.bindBuffer GL.ELEMENT_ARRAY_BUFFER index-buffer-id)
-      (GL.bufferIntData GL.ELEMENT_ARRAY_BUFFER (Array.length &indices) (Array.raw indices) GL.STATIC_DRAW)
-
 
       (GL.shaderSource vertex-shader-id
                        (Array.length &vertex-shader-source)
@@ -113,16 +103,31 @@
 
       (GL.checkLinkErrors program-id)
 
-      (GL.useProgram program-id)
+      
+      (GL.bindVertexArray array-id)
+      (GL.bindBuffer GL.ARRAY_BUFFER vertex-buffer-id)
 
-      (GL.uniformMatrix4fv 1 1 GL.FALSE (Array.raw (get-projection-matrix 640f 480f)))
+      (GL.bufferFloatData GL.ARRAY_BUFFER (Array.length &vertices) (Array.raw vertices) GL.STATIC_DRAW)
+      (let-do [vert-attrib-id (GL.getAttribLocation program-id (cstr "vert"))
+               proj-uniform-id (GL.getUniformLocation program-id (cstr "proj"))
+               rot-uniform-id (GL.getUniformLocation program-id (cstr "rot"))]
+        (GL.vertexAttribPointer vert-attrib-id 2 GL.FLOAT GL.FALSE 8 0)
+        (GL.enableVertexAttribArray vert-attrib-id)
 
-      (while (= 0 (window-should-close window))
-        (do
-          (GL.uniformMatrix4fv 2 1 GL.FALSE (Array.raw (get-rot-scale-translate-matrix (t) 1.0f 1.0f 320f 240f)))
-          (GL.clearColor 0.2f 0.1f 0.1f 1.0f)
-          (GL.clear GL.COLOR_BUFFER_BIT)
-          (GL.drawElements GL.TRIANGLES num-of-v GL.UNSIGNED_INT 0)
-          (swap-buffers window)
-          (poll-events)))))
+        (GL.bindBuffer GL.ELEMENT_ARRAY_BUFFER index-buffer-id)
+        (GL.bufferIntData GL.ELEMENT_ARRAY_BUFFER (Array.length &indices) (Array.raw indices) GL.STATIC_DRAW)
+
+        (GL.useProgram program-id)
+
+      
+        (GL.uniformMatrix4fv proj-uniform-id 1 GL.FALSE (Array.raw (get-projection-matrix 640f 480f)))
+
+        (while (= 0 (window-should-close window))
+          (do
+            (GL.uniformMatrix4fv rot-uniform-id 1 GL.FALSE (Array.raw (get-rot-scale-translate-matrix (t) 1.0f 1.0f 320f 240f)))
+            (GL.clearColor 0.2f 0.1f 0.1f 1.0f)
+            (GL.clear GL.COLOR_BUFFER_BIT)
+            (GL.drawElements GL.TRIANGLES num-of-v GL.UNSIGNED_INT 0)
+            (swap-buffers window)
+            (poll-events))))))
   0)

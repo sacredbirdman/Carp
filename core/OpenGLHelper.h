@@ -1,5 +1,7 @@
-
+#ifndef __APPLE__
 #include <GL/glew.h>
+#endif
+
 #include <GLFW/glfw3.h>
   
 #include <carp_memory.h>
@@ -8,8 +10,11 @@
 GLuint GL_genVertexArray() {
 
   GLuint tmp = 0;
+
+#ifndef __APPLE__
   glewExperimental = GL_TRUE; 
   glewInit();
+#endif
 
   glGenVertexArrays(1, &tmp);
   return tmp;

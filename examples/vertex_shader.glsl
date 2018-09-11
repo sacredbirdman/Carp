@@ -1,10 +1,8 @@
-#version 140
-#extension GL_ARB_explicit_uniform_location : enable
-#extension GL_ARB_explicit_attrib_location : enable
+#version 120
 
-layout(location = 0)in vec2 vert;
-layout(location = 1)uniform mat4 proj;
-layout(location = 2)uniform mat4 rot;
+attribute vec2 vert;
+uniform mat4 proj;
+uniform mat4 rot;
 
 void main()
 {
